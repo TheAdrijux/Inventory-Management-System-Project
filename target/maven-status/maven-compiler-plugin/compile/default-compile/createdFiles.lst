@@ -1,0 +1,17 @@
+com\inventory\app\gui\ComponentUI.class
+com\inventory\app\gui\ProductUI.class
+com\inventory\app\model\Product.class
+com\inventory\app\gui\MainUI.class
+com\inventory\app\model\Category.class
+com\inventory\app\dao\JpaProductDAO.class
+com\inventory\app\gui\ClientUI.class
+com\inventory\app\gui\OrderUI.class
+com\inventory\app\dao\ProductDAO.class
+com\inventory\app\model\Client.class
+com\inventory\app\model\Order.class
+com\inventory\app\dao\BaseDAO.class
+com\inventory\app\model\OrderItem.class
+com\inventory\app\dao\JpaBaseDAO.class
+com\inventory\app\gui\BaseUI.class
+com\inventory\app\gui\CategoryUI.class
+com\inventory\app\MainApp.class
