@@ -39,23 +39,6 @@ if errorlevel 1 (
     )
 )
 
-REM Create shortcut on desktop
-echo.
-echo Creating desktop shortcut...
-echo Set oWS = WScript.CreateObject("WScript.Shell") > CreateShortcut.vbs
-echo sLinkFile = oWS.ExpandEnvironmentStrings("%USERPROFILE%\Desktop\Inventory System.lnk") >> CreateShortcut.vbs
-echo Set oLink = oWS.CreateShortcut(sLinkFile) >> CreateShortcut.vbs
-echo oLink.TargetPath = "%CD%\target\InventorySystem.exe" >> CreateShortcut.vbs
-echo oLink.WorkingDirectory = "%CD%" >> CreateShortcut.vbs
-echo oLink.Description = "Inventory Management System" >> CreateShortcut.vbs
-echo oLink.IconLocation = "%CD%\target\InventorySystem.exe,0" >> CreateShortcut.vbs
-echo oLink.Save >> CreateShortcut.vbs
-cscript //nologo CreateShortcut.vbs
-del CreateShortcut.vbs
-
-echo.
-echo Desktop shortcut created! You can now run the application from the shortcut.
-echo Note: Run this script again if you make code changes to rebuild the application.
 echo.
 echo Application closed. Press any key to exit.
 pause > nul 

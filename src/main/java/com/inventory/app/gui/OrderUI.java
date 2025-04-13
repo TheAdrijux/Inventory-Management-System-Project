@@ -186,7 +186,7 @@ public class OrderUI extends ComponentUI {
 
     private void showOrderDialog(Order order) {
         Dialog<Order> dialog = new Dialog<>();
-        dialog.setTitle(order == null ? "New Order" : "View Order");
+        dialog.setTitle(order == null ? "New Order" : "Edit Order");
         
         BorderPane content = new BorderPane();
         content.setPadding(new Insets(20));
@@ -207,7 +207,6 @@ public class OrderUI extends ComponentUI {
         
         if (order != null) {
             clientBox.setValue(order.getClient());
-            clientBox.setDisable(true);
         }
         
         // Products table
@@ -236,47 +235,45 @@ public class OrderUI extends ComponentUI {
         Label totalLabel = new Label();
         totalLabel.setStyle("-fx-font-weight: bold;");
         
-        if (order == null) {
-            // Add product button
-            Button addProductButton = new Button("Add Product");
-            addProductButton.setOnAction(e -> showAddProductDialog(itemsTable, totalLabel));
-            
-            // Edit and Delete buttons for items
-            Button editItemButton = new Button("Edit Item");
-            editItemButton.setOnAction(e -> {
-                OrderItem selected = itemsTable.getSelectionModel().getSelectedItem();
-                if (selected != null) {
-                    showEditProductDialog(itemsTable, selected, totalLabel);
-                }
-            });
-            
-            Button deleteItemButton = new Button("Delete Item");
-            deleteItemButton.setOnAction(e -> {
-                OrderItem selected = itemsTable.getSelectionModel().getSelectedItem();
-                if (selected != null && showConfirmation("Delete Item", 
-                    "Are you sure you want to remove this item from the order?")) {
-                    itemsTable.getItems().remove(selected);
-                    updateTotal(itemsTable, totalLabel);
-                }
-            });
-            
-            HBox itemControls = new HBox(10);
-            itemControls.getChildren().addAll(addProductButton, editItemButton, deleteItemButton);
-            
-            VBox topSection = new VBox(10);
-            topSection.getChildren().addAll(
-                new HBox(10, new Label("Client:"), clientBox),
-                itemControls
-            );
-            content.setTop(topSection);
-            
-            // Update total when items change
-            itemsTable.getItems().addListener((javafx.collections.ListChangeListener.Change<?> c) -> 
-                updateTotal(itemsTable, totalLabel));
-        } else {
-            content.setTop(new HBox(10, new Label("Client: " + order.getClient().getName())));
+        // Add product button
+        Button addProductButton = new Button("Add Product");
+        addProductButton.setOnAction(e -> showAddProductDialog(itemsTable, totalLabel));
+        
+        // Edit and Delete buttons for items
+        Button editItemButton = new Button("Edit Item");
+        editItemButton.setOnAction(e -> {
+            OrderItem selected = itemsTable.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                showEditProductDialog(itemsTable, selected, totalLabel);
+            }
+        });
+        
+        Button deleteItemButton = new Button("Delete Item");
+        deleteItemButton.setOnAction(e -> {
+            OrderItem selected = itemsTable.getSelectionModel().getSelectedItem();
+            if (selected != null && showConfirmation("Delete Item", 
+                "Are you sure you want to remove this item from the order?")) {
+                itemsTable.getItems().remove(selected);
+                updateTotal(itemsTable, totalLabel);
+            }
+        });
+        
+        HBox itemControls = new HBox(10);
+        itemControls.getChildren().addAll(addProductButton, editItemButton, deleteItemButton);
+        
+        VBox topSection = new VBox(10);
+        topSection.getChildren().addAll(
+            new HBox(10, new Label("Client:"), clientBox),
+            itemControls
+        );
+        content.setTop(topSection);
+        
+        // Update total when items change
+        itemsTable.getItems().addListener((javafx.collections.ListChangeListener.Change<?> c) -> 
+            updateTotal(itemsTable, totalLabel));
+        
+        if (order != null) {
             itemsTable.setItems(FXCollections.observableArrayList(order.getOrderItems()));
-            updateTotal(itemsTable, totalLabel);
         }
         
         // Add total label at the bottom
@@ -289,39 +286,34 @@ public class OrderUI extends ComponentUI {
         content.setCenter(centerSection);
         
         dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().addAll(
-            order == null ? ButtonType.OK : ButtonType.CLOSE,
-            ButtonType.CANCEL
-        );
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
-        if (order == null) {
-            dialog.setResultConverter(buttonType -> {
-                if (buttonType == ButtonType.OK) {
-                    if (clientBox.getValue() == null) {
-                        showError("Invalid Input", "Please select a client.");
-                        return null;
-                    }
-                    if (itemsTable.getItems().isEmpty()) {
-                        showError("Invalid Input", "Please add at least one product.");
-                        return null;
-                    }
-                    
-                    Order newOrder = new Order();
-                    newOrder.setClient(clientBox.getValue());
-                    newOrder.setOrderDate(LocalDateTime.now());
-                    newOrder.setOrderItems(new ArrayList<>(itemsTable.getItems()));
-                    for (OrderItem item : newOrder.getOrderItems()) {
-                        item.setOrder(newOrder);
-                    }
-                    return newOrder;
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == ButtonType.OK) {
+                if (clientBox.getValue() == null) {
+                    showError("Invalid Input", "Please select a client.");
+                    return null;
                 }
-                return null;
-            });
-            
-            dialog.showAndWait().ifPresent(this::saveOrder);
-        } else {
-            dialog.showAndWait();
-        }
+                if (itemsTable.getItems().isEmpty()) {
+                    showError("Invalid Input", "Please add at least one product.");
+                    return null;
+                }
+                
+                Order resultOrder = order != null ? order : new Order();
+                resultOrder.setClient(clientBox.getValue());
+                if (order == null) {
+                    resultOrder.setOrderDate(LocalDateTime.now());
+                }
+                resultOrder.setOrderItems(new ArrayList<>(itemsTable.getItems()));
+                for (OrderItem item : resultOrder.getOrderItems()) {
+                    item.setOrder(resultOrder);
+                }
+                return resultOrder;
+            }
+            return null;
+        });
+        
+        dialog.showAndWait().ifPresent(this::saveOrder);
     }
 
     private void showAddProductDialog(TableView<OrderItem> itemsTable, Label totalLabel) {
@@ -537,38 +529,44 @@ public class OrderUI extends ComponentUI {
             var cb = em.getCriteriaBuilder();
             var cq = cb.createQuery(Order.class);
             var root = cq.from(Order.class);
-            root.fetch("client", JoinType.LEFT);
-            root.fetch("orderItems", JoinType.LEFT);
-            
+            var client = root.join("client", JoinType.LEFT);
+            var items = root.join("orderItems", JoinType.LEFT);
+            var product = items.join("product", JoinType.LEFT);
+            var category = product.join("category", JoinType.LEFT);
+
             var predicates = new ArrayList<Predicate>();
-            
-            // Client filter
+
+            // Filter by client
             if (clientFilter.getValue() != null) {
-                predicates.add(cb.equal(root.get("client"), clientFilter.getValue()));
+                predicates.add(cb.equal(client, clientFilter.getValue()));
             }
-            
-            // Date range filter
+
+            // Filter by date range
             if (startDate.getValue() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(
-                    root.get("orderDate"), 
-                    startDate.getValue().atStartOfDay()
-                ));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), startDate.getValue().atStartOfDay()));
             }
             if (endDate.getValue() != null) {
-                predicates.add(cb.lessThanOrEqualTo(
-                    root.get("orderDate"), 
-                    endDate.getValue().plusDays(1).atStartOfDay()
-                ));
+                predicates.add(cb.lessThanOrEqualTo(root.get("orderDate"), endDate.getValue().plusDays(1).atStartOfDay()));
             }
-            
+
+            // Filter by total amount range
+            predicates.add(cb.greaterThan(root.get("totalAmount"), BigDecimal.ZERO));
+
+            // Apply all predicates
             if (!predicates.isEmpty()) {
                 cq.where(predicates.toArray(new Predicate[0]));
             }
-            
+
+            // Group by order and aggregate
+            cq.groupBy(root.get("id"), root.get("orderDate"), root.get("totalAmount"), client);
+            cq.having(cb.greaterThan(cb.count(items), 0L));
+
+            // Order by date descending
+            cq.orderBy(cb.desc(root.get("orderDate")));
+
             var query = em.createQuery(cq);
             var orders = query.getResultList();
             orderTable.setItems(FXCollections.observableArrayList(orders));
-            
             em.close();
         } catch (Exception e) {
             showError("Filter Error", "Failed to filter orders: " + e.getMessage());

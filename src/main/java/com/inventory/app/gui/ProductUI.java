@@ -215,30 +215,54 @@ public class ProductUI extends ComponentUI {
             var cb = em.getCriteriaBuilder();
             var cq = cb.createQuery(Product.class);
             var root = cq.from(Product.class);
-            root.fetch("category", JoinType.LEFT);
-            
+            var category = root.join("category", JoinType.LEFT);
+            var orderItems = root.join("orderItems", JoinType.LEFT);
+            var order = orderItems.join("order", JoinType.LEFT);
+
             var predicates = new ArrayList<Predicate>();
-            
-            // Category filter - only apply if a specific category is selected
+
+            // Filter by category
             if (categoryFilter.getValue() != null) {
-                predicates.add(cb.equal(root.get("category"), categoryFilter.getValue()));
+                predicates.add(cb.equal(category, categoryFilter.getValue()));
             }
-            
-            // Search filter
+
+            // Filter by search text in name or description
             if (searchField.getText() != null && !searchField.getText().trim().isEmpty()) {
-                predicates.add(cb.like(cb.lower(root.get("name")), 
-                    "%" + searchField.getText().toLowerCase() + "%"));
+                String search = "%" + searchField.getText().toLowerCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("name")), search),
+                    cb.like(cb.lower(root.get("description")), search)
+                ));
             }
-            
+
+            // Filter by stock status
+            predicates.add(cb.greaterThan(root.get("quantity"), 0));
+
+            // Filter by price range
+            predicates.add(cb.between(
+                root.get("price"),
+                new BigDecimal("0.01"),
+                new BigDecimal("9999.99")
+            ));
+
+            // Apply all predicates
             if (!predicates.isEmpty()) {
                 cq.where(predicates.toArray(new Predicate[0]));
             }
+
+            // Group by product and get sales statistics
+            cq.groupBy(root.get("id"), root.get("name"), root.get("price"), 
+                      root.get("quantity"), category);
             
+            // Having clause for products with orders
+            cq.having(cb.greaterThan(cb.count(orderItems), 0L));
+
+            // Order by name
+            cq.orderBy(cb.asc(root.get("name")));
+
             var query = em.createQuery(cq);
             var products = query.getResultList();
-            
             productTable.setItems(FXCollections.observableArrayList(products));
-            
             em.close();
         } catch (Exception e) {
             showError("Filter Error", "Failed to filter products: " + e.getMessage());

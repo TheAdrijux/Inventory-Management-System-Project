@@ -2,6 +2,9 @@ package com.inventory.app.model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,19 +33,52 @@ public class ProductTest {
         assertEquals("Test Product", product.getName());
         assertEquals(new BigDecimal("10.00"), product.getPrice());
         assertEquals(100, product.getQuantity());
-        assertEquals(category, product.getCategory());
+        assertSame(category, product.getCategory());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "5.99, true",
+        "0.01, true",
+        "999.99, true",
+        "0.00, false",
+        "-1.00, false"
+    })
+    void testValidPrices(BigDecimal price, boolean isValid) {
+        if (isValid) {
+            product.setPrice(price);
+            assertEquals(price, product.getPrice());
+            assertFalse(product.getPrice().compareTo(BigDecimal.ZERO) < 0);
+        } else {
+            assertThrows(IllegalArgumentException.class, () -> product.setPrice(price));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, -100})
+    void testInvalidQuantities(int invalidQuantity) {
+        assertThrows(IllegalArgumentException.class, () -> product.setQuantity(invalidQuantity));
     }
 
     @Test
     void testProductToString() {
         String expected = "Test Product";
         assertEquals(expected, product.toString());
+        assertNotNull(product.toString());
     }
 
     @Test
     void testSetInvalidPrice() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            product.setPrice(new BigDecimal("-10.00")));
+        assertAll("Price validation",
+            () -> assertThrows(IllegalArgumentException.class, () -> 
+                product.setPrice(new BigDecimal("-10.00"))),
+            () -> assertThrows(IllegalArgumentException.class, () -> 
+                product.setPrice(BigDecimal.ZERO)),
+            () -> {
+                product.setPrice(new BigDecimal("1.00"));
+                assertTrue(product.getPrice().compareTo(BigDecimal.ZERO) > 0);
+            }
+        );
     }
 
     @Test

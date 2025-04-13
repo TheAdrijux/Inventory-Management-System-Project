@@ -2,6 +2,9 @@ package com.inventory.app.model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
@@ -108,5 +111,58 @@ public class OrderItemTest {
         assertEquals(newProduct.getPrice(), orderItem.getPricePerUnit());
         assertEquals(newProduct.getPrice(), orderItem.getUnitPrice());
         assertEquals(newProduct.getPrice().multiply(new BigDecimal("5")), orderItem.getTotalPrice());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "10.00, 2, 20.00",
+        "15.50, 3, 46.50",
+        "100.00, 1, 100.00",
+        "5.99, 5, 29.95"
+    })
+    void testSubtotalCalculation(BigDecimal price, int quantity, BigDecimal expected) {
+        OrderItem item = new OrderItem();
+        item.setPricePerUnit(price);
+        item.setQuantity(quantity);
+        assertEquals(expected, item.getSubtotal());
+        assertFalse(item.getSubtotal().compareTo(BigDecimal.ZERO) < 0, "Subtotal should not be negative");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5, 10, 100})
+    void testValidQuantities(int quantity) {
+        orderItem.setQuantity(quantity);
+        assertEquals(quantity, orderItem.getQuantity());
+        assertSame(product, orderItem.getProduct(), "Product reference should remain the same");
+    }
+
+    @Test
+    void testInvalidQuantity() {
+        assertAll("Quantity validation",
+            () -> assertThrows(IllegalArgumentException.class, () -> orderItem.setQuantity(-1)),
+            () -> assertThrows(IllegalArgumentException.class, () -> orderItem.setQuantity(0)),
+            () -> {
+                orderItem.setQuantity(1);
+                assertTrue(orderItem.getQuantity() > 0, "Quantity should be positive");
+            }
+        );
+    }
+
+    @Test
+    void testEqualsAndHashCode() {
+        OrderItem sameItem = new OrderItem();
+        sameItem.setId(1L);
+        sameItem.setOrder(order);
+        sameItem.setProduct(product);
+        
+        OrderItem differentItem = new OrderItem();
+        differentItem.setId(2L);
+        differentItem.setOrder(order);
+        differentItem.setProduct(product);
+
+        assertEquals(orderItem, sameItem);
+        assertEquals(orderItem.hashCode(), sameItem.hashCode());
+        assertNotEquals(orderItem, differentItem);
+        assertNotEquals(orderItem.hashCode(), differentItem.hashCode());
     }
 } 
